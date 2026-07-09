@@ -1,14 +1,9 @@
-const CONFIG_KEY = "controleHoras.scriptUrl";
 const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxd85ARxxgC6grfmfUJmOKlPUwoZNXQX78ww8MaI4Y8Phj69Mrou-mM6xEkANeKBnB/exec";
 
 const els = {
   currentDate: document.querySelector("#current-date"),
   currentTime: document.querySelector("#current-time"),
   statusText: document.querySelector("#status-text"),
-  settingsToggle: document.querySelector("#settings-toggle"),
-  settingsPanel: document.querySelector("#settings-panel"),
-  scriptUrl: document.querySelector("#script-url"),
-  saveSettings: document.querySelector("#save-settings"),
   useCurrentTime: document.querySelector("#use-current-time"),
   manualFields: document.querySelector("#manual-fields"),
   manualDate: document.querySelector("#manual-date"),
@@ -58,13 +53,7 @@ function updateClock() {
 }
 
 function getScriptUrl() {
-  return localStorage.getItem(CONFIG_KEY) || DEFAULT_SCRIPT_URL;
-}
-
-function saveScriptUrl() {
-  const url = els.scriptUrl.value.trim();
-  localStorage.setItem(CONFIG_KEY, url);
-  setStatus(url ? "Configuração salva." : "URL removida. Cole a URL do Apps Script antes de registrar.");
+  return DEFAULT_SCRIPT_URL;
 }
 
 function toggleManualFields() {
@@ -279,15 +268,9 @@ async function registerPoint(kind) {
 }
 
 function init() {
-  els.scriptUrl.value = getScriptUrl();
   updateClock();
   setInterval(updateClock, 1000);
 
-  els.settingsToggle.addEventListener("click", () => {
-    els.settingsPanel.classList.toggle("is-hidden");
-  });
-
-  els.saveSettings.addEventListener("click", saveScriptUrl);
   els.useCurrentTime.addEventListener("change", toggleManualFields);
 
   els.pointButtons.forEach((button) => {
