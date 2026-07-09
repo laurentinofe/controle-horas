@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1d4ed8">
+    <title>Controle de Horas</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="top-panel" aria-labelledby="app-title">
+        <div>
+          <p class="eyebrow">Registro pessoal</p>
+          <h1 id="app-title">Controle de Horas</h1>
+        </div>
+        <div class="clock" aria-live="polite">
+          <span id="current-date">--/--/----</span>
+          <strong id="current-time">--:--</strong>
+        </div>
+      </section>
+
+      <section class="status-panel" aria-live="polite">
+        <div>
+          <span class="status-label">Situação</span>
+          <strong id="status-text">Pronto para registrar.</strong>
+        </div>
+        <button class="icon-button" id="settings-toggle" type="button" aria-label="Abrir configurações">⚙</button>
+      </section>
+
+      <section class="settings-panel is-hidden" id="settings-panel" aria-label="Configurações">
+        <label class="field">
+          <span>URL do Google Apps Script</span>
+          <input id="script-url" type="url" inputmode="url" placeholder="Cole aqui a URL /exec">
+        </label>
+        <button class="secondary-button" id="save-settings" type="button">Salvar configuração</button>
+      </section>
+
+      <section class="time-panel" aria-label="Horário do registro">
+        <label class="switch-row">
+          <input id="use-current-time" type="checkbox" checked>
+          <span>Usar horário atual do celular</span>
+        </label>
+        <div class="manual-grid is-disabled" id="manual-fields">
+          <label class="field">
+            <span>Data</span>
+            <input id="manual-date" type="date">
+          </label>
+          <label class="field">
+            <span>Hora</span>
+            <input id="manual-time" type="time">
+          </label>
+        </div>
+      </section>
+
+      <section class="actions-grid" aria-label="Registrar ponto">
+        <button class="point-button point-start" data-kind="Entrada" type="button">
+          <span>Entrada</span>
+          <small>Início do expediente</small>
+        </button>
+        <button class="point-button point-lunch-out" data-kind="Saída para almoço" type="button">
+          <span>Saída almoço</span>
+          <small>Pausa do almoço</small>
+        </button>
+        <button class="point-button point-lunch-in" data-kind="Retorno do almoço" type="button">
+          <span>Retorno almoço</span>
+          <small>Volta da pausa</small>
+        </button>
+        <button class="point-button point-end" data-kind="Saída" type="button">
+          <span>Saída</span>
+          <small>Fim do expediente</small>
+        </button>
+      </section>
+
+      <section class="note-panel" aria-label="Observação">
+        <label class="field">
+          <span>Observação</span>
+          <textarea id="note" rows="3" placeholder="Ex.: atendimento externo, ajuste de horário, deslocamento..."></textarea>
+        </label>
+      </section>
+
+      <section class="location-panel" aria-label="Localização">
+        <div>
+          <span class="status-label">Localização</span>
+          <strong id="location-summary">Será solicitada no registro.</strong>
+          <p id="location-detail">Rua, número, bairro e cidade serão preenchidos quando disponíveis.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
