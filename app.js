@@ -37,6 +37,11 @@ function toTimeInputValue(date) {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function formatDateForMessage(dateValue) {
+  const [year, month, day] = dateValue.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 function setStatus(message) {
   els.statusText.textContent = message;
 }
@@ -90,6 +95,23 @@ function getSelectedDateTime() {
     timestamp: manualDate.toISOString(),
     adjusted: true
   };
+}
+
+function buildConfirmationMessage(kind, selectedDateTime) {
+  const date = formatDateForMessage(selectedDateTime.date);
+  const baseMessage = `Registrar ${kind} em ${selectedDateTime.time} de ${date}?`;
+
+  if (!selectedDateTime.adjusted) {
+    return baseMessage;
+  }
+
+  return `${baseMessage}\n\nAtenção: este horário foi ajustado manualmente.`;
+}
+
+function resetToCurrentTimeMode() {
+  els.useCurrentTime.checked = true;
+  toggleManualFields();
+  updateClock();
 }
 
 function getPosition() {
@@ -238,10 +260,17 @@ async function sendRecord(record) {
 
 async function registerPoint(kind) {
   try {
+    const selectedDateTime = getSelectedDateTime();
+    const confirmed = window.confirm(buildConfirmationMessage(kind, selectedDateTime));
+
+    if (!confirmed) {
+      setStatus("Registro cancelado.");
+      return;
+    }
+
     setButtonsDisabled(true);
     setStatus(`Registrando ${kind.toLowerCase()}...`);
 
-    const selectedDateTime = getSelectedDateTime();
     const location = await collectLocation();
 
     const record = {
@@ -260,6 +289,10 @@ async function registerPoint(kind) {
 
     setStatus(`${kind} enviado para a planilha.`);
     els.note.value = "";
+
+    if (selectedDateTime.adjusted) {
+      resetToCurrentTimeMode();
+    }
   } catch (error) {
     setStatus(error.message);
   } finally {
