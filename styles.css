@@ -113,6 +113,14 @@ h1 {
   line-height: 1.3;
 }
 
+.status-panel small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
 .icon-button {
   width: 44px;
   height: 44px;
@@ -176,6 +184,19 @@ textarea:focus {
   color: #ffffff;
   font-weight: 700;
   cursor: pointer;
+}
+
+.compact-button {
+  width: auto;
+  min-width: 118px;
+  margin-top: 0;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.compact-button:disabled {
+  cursor: default;
+  opacity: 0.58;
 }
 
 .switch-row {
@@ -285,5 +306,14 @@ textarea:focus {
 
   .point-button {
     min-height: 104px;
+  }
+
+  .status-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .compact-button {
+    width: 100%;
   }
 }

@@ -1,9 +1,12 @@
 const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxd85ARxxgC6grfmfUJmOKlPUwoZNXQX78ww8MaI4Y8Phj69Mrou-mM6xEkANeKBnB/exec";
+const PENDING_RECORDS_KEY = "controleHoras.pendingRecords";
 
 const els = {
   currentDate: document.querySelector("#current-date"),
   currentTime: document.querySelector("#current-time"),
   statusText: document.querySelector("#status-text"),
+  pendingStatus: document.querySelector("#pending-status"),
+  syncPending: document.querySelector("#sync-pending"),
   useCurrentTime: document.querySelector("#use-current-time"),
   manualFields: document.querySelector("#manual-fields"),
   manualDate: document.querySelector("#manual-date"),
@@ -13,6 +16,8 @@ const els = {
   locationDetail: document.querySelector("#location-detail"),
   pointButtons: document.querySelectorAll("[data-kind]")
 };
+
+let isSyncing = false;
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -44,6 +49,63 @@ function formatDateForMessage(dateValue) {
 
 function setStatus(message) {
   els.statusText.textContent = message;
+}
+
+function hasOnlineSignal() {
+  return navigator.onLine !== false;
+}
+
+function createLocalId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function loadPendingRecords() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_RECORDS_KEY) || "[]");
+  } catch (error) {
+    return [];
+  }
+}
+
+function savePendingRecords(records) {
+  localStorage.setItem(PENDING_RECORDS_KEY, JSON.stringify(records));
+  updatePendingStatus(records.length);
+}
+
+function queueRecord(record) {
+  const queuedRecord = {
+    ...record,
+    localId: createLocalId(),
+    queuedAt: new Date().toISOString(),
+    syncAttempts: 0
+  };
+  const records = loadPendingRecords();
+  records.push(queuedRecord);
+  savePendingRecords(records);
+  return queuedRecord;
+}
+
+function removePendingRecord(localId) {
+  const records = loadPendingRecords().filter((record) => record.localId !== localId);
+  savePendingRecords(records);
+}
+
+function updatePendingRecord(updatedRecord) {
+  const records = loadPendingRecords().map((record) => {
+    return record.localId === updatedRecord.localId ? updatedRecord : record;
+  });
+  savePendingRecords(records);
+}
+
+function updatePendingStatus(count = loadPendingRecords().length) {
+  const onlineText = hasOnlineSignal() ? "online" : "sem internet";
+  const pendingText = count === 1 ? "1 registro pendente" : `${count} registros pendentes`;
+  els.pendingStatus.textContent = count ? `${pendingText} (${onlineText}).` : `Nenhum registro pendente (${onlineText}).`;
+  els.syncPending.disabled = !count || isSyncing;
 }
 
 function updateClock() {
@@ -114,6 +176,21 @@ function resetToCurrentTimeMode() {
   updateClock();
 }
 
+function emptyLocation() {
+  return {
+    latitude: "",
+    longitude: "",
+    accuracy: "",
+    street: "",
+    number: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    address: "",
+    mapUrl: ""
+  };
+}
+
 function getPosition() {
   if (!("geolocation" in navigator)) {
     return Promise.resolve(null);
@@ -133,6 +210,10 @@ function getPosition() {
 }
 
 async function reverseGeocode(latitude, longitude) {
+  if (!hasOnlineSignal()) {
+    throw new Error("Sem internet para converter a localização em endereço.");
+  }
+
   const url = new URL("https://nominatim.openstreetmap.org/reverse");
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("lat", latitude);
@@ -179,19 +260,8 @@ async function collectLocation() {
 
   if (!position) {
     els.locationSummary.textContent = "Localização não capturada.";
-    els.locationDetail.textContent = "O registro será enviado sem rua e bairro.";
-    return {
-      latitude: "",
-      longitude: "",
-      accuracy: "",
-      street: "",
-      number: "",
-      neighborhood: "",
-      city: "",
-      state: "",
-      address: "",
-      mapUrl: ""
-    };
+    els.locationDetail.textContent = "O registro será salvo mesmo sem rua e bairro.";
+    return emptyLocation();
   }
 
   const { latitude, longitude, accuracy } = position.coords;
@@ -218,7 +288,7 @@ async function collectLocation() {
     };
   } catch (error) {
     els.locationSummary.textContent = "Coordenadas capturadas.";
-    els.locationDetail.textContent = "O endereço em texto não veio, mas o link do mapa será salvo.";
+    els.locationDetail.textContent = "O endereço em texto será tentado novamente quando houver internet.";
 
     return {
       latitude,
@@ -235,6 +305,29 @@ async function collectLocation() {
   }
 }
 
+async function enrichAddressWhenPossible(record) {
+  if (!record.latitude || !record.longitude || record.address || !hasOnlineSignal()) {
+    return record;
+  }
+
+  try {
+    const data = await reverseGeocode(record.latitude, record.longitude);
+    const address = normalizeAddress(data);
+
+    return {
+      ...record,
+      street: address.street,
+      number: address.number,
+      neighborhood: address.neighborhood,
+      city: address.city,
+      state: address.state,
+      address: address.formatted
+    };
+  } catch (error) {
+    return record;
+  }
+}
+
 function setButtonsDisabled(disabled) {
   els.pointButtons.forEach((button) => {
     button.disabled = disabled;
@@ -248,6 +341,10 @@ async function sendRecord(record) {
     throw new Error("Cole e salve a URL do Google Apps Script nas configurações.");
   }
 
+  if (!hasOnlineSignal()) {
+    throw new Error("Sem internet para enviar agora.");
+  }
+
   await fetch(scriptUrl, {
     method: "POST",
     mode: "no-cors",
@@ -256,6 +353,74 @@ async function sendRecord(record) {
     },
     body: JSON.stringify(record)
   });
+}
+
+async function syncPendingRecords(options = {}) {
+  const { silent = false } = options;
+
+  if (isSyncing) {
+    return false;
+  }
+
+  const records = loadPendingRecords();
+
+  if (!records.length) {
+    updatePendingStatus(0);
+    if (!silent) {
+      setStatus("Nenhum registro pendente.");
+    }
+    return true;
+  }
+
+  if (!hasOnlineSignal()) {
+    updatePendingStatus(records.length);
+    if (!silent) {
+      setStatus("Sem internet. Os registros continuam salvos no aparelho.");
+    }
+    return false;
+  }
+
+  isSyncing = true;
+  updatePendingStatus(records.length);
+
+  if (!silent) {
+    setStatus("Sincronizando registros pendentes...");
+  }
+
+  let sentCount = 0;
+
+  for (const record of records) {
+    try {
+      const enrichedRecord = await enrichAddressWhenPossible(record);
+      await sendRecord(enrichedRecord);
+      removePendingRecord(record.localId);
+      sentCount += 1;
+    } catch (error) {
+      updatePendingRecord({
+        ...record,
+        syncAttempts: (record.syncAttempts || 0) + 1,
+        lastSyncError: error.message,
+        lastSyncAttempt: new Date().toISOString()
+      });
+      break;
+    }
+  }
+
+  isSyncing = false;
+  updatePendingStatus();
+
+  const remaining = loadPendingRecords().length;
+
+  if (!remaining) {
+    setStatus(sentCount === 1 ? "1 registro sincronizado com a planilha." : `${sentCount} registros sincronizados com a planilha.`);
+    return true;
+  }
+
+  if (!silent || sentCount > 0) {
+    setStatus(`${sentCount} enviado(s). ${remaining} registro(s) ainda pendente(s).`);
+  }
+
+  return false;
 }
 
 async function registerPoint(kind) {
@@ -285,13 +450,20 @@ async function registerPoint(kind) {
       ...location
     };
 
-    await sendRecord(record);
+    const queuedRecord = queueRecord(record);
 
-    setStatus(`${kind} enviado para a planilha.`);
+    setStatus(`${kind} salvo no aparelho. Tentando enviar...`);
     els.note.value = "";
 
     if (selectedDateTime.adjusted) {
       resetToCurrentTimeMode();
+    }
+
+    await syncPendingRecords({ silent: true });
+
+    const stillPending = loadPendingRecords().some((pendingRecord) => pendingRecord.localId === queuedRecord.localId);
+    if (stillPending) {
+      setStatus(`${kind} salvo no aparelho. Será enviado quando houver internet.`);
     }
   } catch (error) {
     setStatus(error.message);
@@ -300,15 +472,34 @@ async function registerPoint(kind) {
   }
 }
 
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  navigator.serviceWorker.register("./sw.js").catch(() => {
+    setStatus("Não foi possível ativar o modo offline neste navegador.");
+  });
+}
+
 function init() {
+  registerServiceWorker();
   updateClock();
+  updatePendingStatus();
   setInterval(updateClock, 1000);
 
   els.useCurrentTime.addEventListener("change", toggleManualFields);
+  els.syncPending.addEventListener("click", () => syncPendingRecords());
+  window.addEventListener("online", () => syncPendingRecords({ silent: true }));
+  window.addEventListener("offline", () => updatePendingStatus());
 
   els.pointButtons.forEach((button) => {
     button.addEventListener("click", () => registerPoint(button.dataset.kind));
   });
+
+  if (hasOnlineSignal()) {
+    syncPendingRecords({ silent: true });
+  }
 }
 
 init();

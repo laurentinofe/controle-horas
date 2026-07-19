@@ -27,10 +27,16 @@ Aplicativo simples para registrar ponto pessoal em viagens ou atendimentos exter
 ## Como usar
 
 1. Abra `index.html` no celular ou hospede a pasta em um local HTTPS.
-2. Toque no botão de engrenagem.
-3. Cole a URL `/exec` do Apps Script.
-4. Salve.
-5. Use os botões `Entrada`, `Saída almoço`, `Retorno almoço` e `Saída`.
+2. Use os botões `Entrada`, `Saída almoço`, `Retorno almoço` e `Saída`.
+3. Confirme a data e o horário antes do envio.
+
+## Uso offline
+
+Depois do primeiro acesso em HTTPS, o aplicativo salva os arquivos principais no celular e pode abrir mesmo com internet ruim. Se não conseguir enviar um registro no momento do clique, ele fica salvo no aparelho como pendente e será sincronizado quando a conexão voltar.
+
+O app também mostra quantos registros estão pendentes e oferece o botão `Sincronizar` para tentar o envio manualmente.
+
+Quando estiver sem internet, a localização pode ficar limitada a latitude e longitude ou pode não ser capturada. Se houver coordenadas, o endereço em texto será tentado novamente no momento da sincronização.
 
 ## Como hospedar pelo Netlify Drop
 
