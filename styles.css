@@ -49,6 +49,7 @@ textarea {
 .top-panel,
 .status-panel,
 .settings-panel,
+.links-panel,
 .time-panel,
 .note-panel,
 .location-panel {
@@ -132,10 +133,30 @@ h1 {
 }
 
 .settings-panel,
+.links-panel,
 .time-panel,
 .note-panel,
 .location-panel {
   padding: 14px;
+}
+
+.sheet-link {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.sheet-link:focus,
+.sheet-link:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.16);
 }
 
 .is-hidden {
